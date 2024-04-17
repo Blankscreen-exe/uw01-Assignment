@@ -1,0 +1,10 @@
+```
+DATABASE_URI=sqlite:///database.db
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=None
+
+CELERY_BROKER_URL=
+```
