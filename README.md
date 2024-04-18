@@ -4,7 +4,7 @@
 docker compose up
 ```
 
-2. create virtual env and instal dependencies
+2. create virtual env and install dependencies
 ```
 pip install -r requirements.txt
 ```
