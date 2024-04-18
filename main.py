@@ -54,7 +54,8 @@ app = FastAPI()
 # SQLAlchemy setup
 Base = declarative_base()
 DATABASE_URI = os.getenv(
-    "DATABASE_URI", "sqlite:///database.db"
+    # "DATABASE_URI", "sqlite+aiosqlite:///database.db"
+    "DATABASE_URI", "postgresql+asyncpg://postgres:postgres@127.0.0.1/test001"
 )
 
 # Redis server configuration
@@ -157,11 +158,16 @@ async def read_and_store_csv(file_path, CSVTable, ProcessedDataTable, batch_size
         for i in range(0, len(data_dicts), batch_size):
             batch = data_dicts[i:i+batch_size]
             # Create instances of CSVTable for each record in the batch
-            csv_objects = [CSVTable(**record) for record in batch]
-
+            csv_objects = []
+            for record in batch:
+                print("+"*12,record)
+                csv_objects.append(CSVTable(**record))
+            
             await session.begin()
             session.add_all(csv_objects)
             await session.commit()
+
+            
 
             # TODO: decide what values "status" should have
             processed_objects = [
@@ -383,12 +389,13 @@ async def upload_csv(file: UploadFile = File(...), r: int = 1):
         await conn.commit()
 
     # Define the file location for the uploaded CSV
-    file_location = f"temp/{unique_id}.csv"
+    file_location = f"./temp/{unique_id}.csv"
     with open(file_location, "wb+") as file_object:
         file_object.write(file.file.read())
     # Store the CSV data in the database and retrieve the total number of rows
     total_rows = await read_and_store_csv(file_location, CSVTable, ProcessedDataTable)
     # Schedule the first processing task using Celery Beat
+    print("="*10,unique_id, r, total_rows)
     process_csv_task.apply_async(args=[unique_id, unique_id, r, 0, total_rows], eta=get_next_minute_start())
     # Return a success message and the unique_id for the upload session
     return {"message": "CSV upload successful. Processing will start shortly.", "unique_id": unique_id}
