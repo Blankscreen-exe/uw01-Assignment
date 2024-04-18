@@ -1,10 +1,23 @@
-```
-DATABASE_URI=sqlite:///database.db
 
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_PASSWORD=None
-
-CELERY_BROKER_URL=
+1. Run the docker Redis Service
 ```
+docker compose up
+```
+
+2. create virtual env and instal dependencies
+```
+pip install -r requirements.txt
+```
+
+3. copy and edit `.env` file
+
+4. create a `temp` folder in the root of the project
+
+5. Run the application
+```
+ uvicorn main:app --reload
+```
+
+6. go to `http://127.0.0.1:8000/docs` for Swagger UI
+
+
