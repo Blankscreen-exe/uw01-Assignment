@@ -1,4 +1,6 @@
 
+## Installation
+
 1. Run the docker Redis Service
 ```
 docker compose up
