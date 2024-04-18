@@ -94,6 +94,19 @@ celery_app.conf.beat_schedule = {
 # TODO: 1
 # Define a function to create a new table class for storing CSV data
 def create_csv_table_class(unique_id):
+    """
+    Creates a new SQLAlchemy table class dynamically based on a unique identifier.
+
+    This function dynamically constructs a new SQLAlchemy table class with a name and table structure
+    based on the provided unique identifier. The table includes columns for storing CSV data and a relationship
+    to a processed data table.
+
+    Parameters:
+    unique_id (str): A unique identifier used to construct the table name and reference it in relationships.
+
+    Returns:
+    class: A dynamically created SQLAlchemy table class for storing CSV data.
+    """
     # TODO: find cause of random-ish None ids, this should never be raised
     if unique_id is None:
         raise
@@ -116,6 +129,15 @@ def create_csv_table_class(unique_id):
 
 # Define a dynamic table creation function for processed data
 def create_processed_data_table_class(unique_id):
+    """
+    Dynamically creates a new SQLAlchemy table class for storing processed data.
+
+    Parameters:
+    - unique_id (str): A unique identifier used to construct the table name and reference it in relationships.
+
+    Returns:
+    - class: A dynamically created SQLAlchemy table class for storing processed data.
+    """
     # Dynamically create a class name based on the unique_id
     class_name = f"ProcessedData_{unique_id}"
     
@@ -136,9 +158,21 @@ def create_processed_data_table_class(unique_id):
 
 # Helper functions for simulating user interactions in prototype - replacing later with actual user data
 def open_function():
+    """
+    Simulates a user interaction that has a 10% chance of returning True.
+
+    Returns:
+    - bool: True with a 10% chance, otherwise False.
+    """
     # 10% chance to return True and 90% chance to return False
     return random.random() < 0.1
 def click_function():
+    """
+    Simulates a user interaction that has a 1% chance of returning True.
+
+    Returns:
+    - bool: True with a 1% chance, otherwise False.
+    """
     # 1% chance to return True and 99% chance to return False
     return random.random() < 0.01
 
@@ -147,6 +181,18 @@ def click_function():
 
 # Function to read and store CSV data asynchronously
 async def read_and_store_csv(file_path, CSVTable, ProcessedDataTable, batch_size=50):
+    """
+    Asynchronously reads a CSV file and stores its data in the database.
+
+    Parameters:
+    - file_path (str): The path to the CSV file.
+    - CSVTable (class): The SQLAlchemy table class for storing original CSV data.
+    - ProcessedDataTable (class): The SQLAlchemy table class for storing processed data.
+    - batch_size (int, optional): The number of records to process in each batch. Defaults to 50.
+
+    Returns:
+    - int: The total number of rows read from the CSV file.
+    """
     # Read CSV file into a pandas DataFrame with predefined column names
     df = pd.read_csv(file_path, names=["col1", "col2", "col3", "col4"])
     
@@ -186,6 +232,17 @@ async def read_and_store_csv(file_path, CSVTable, ProcessedDataTable, batch_size
 
 @celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 5, 'countdown': 60})
 def process_csv_task(self, original_table_name, processed_table_name, R, start_row=0, total_rows=None):
+    """
+    Celery task for processing CSV data in batches.
+
+    Parameters:
+    - self: Reference to the Celery task instance.
+    - original_table_name (str): The name of the original CSV table.
+    - processed_table_name (str): The name of the processed data table.
+    - R (int): The number of rows to process in each batch.
+    - start_row (int, optional): The starting row index for processing. Defaults to 0.
+    - total_rows (int, optional): The total number of rows to process. If None, it will be determined dynamically.
+    """
     # Create a new event loop for the task
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -232,6 +289,15 @@ def process_csv_task(self, original_table_name, processed_table_name, R, start_r
 
 # Define an asynchronous function to get the total number of rows in a table
 async def get_total_rows(OriginalCSVTableClass):
+    """
+    Asynchronously gets the total number of rows in a table.
+
+    Parameters:
+    - OriginalCSVTableClass (class): The SQLAlchemy table class for the original CSV data.
+
+    Returns:
+    - int: The total number of rows in the table.
+    """
     # Use an asynchronous context manager to create a session
     async with AsyncSessionLocal() as session:
         try:
@@ -251,6 +317,18 @@ async def get_total_rows(OriginalCSVTableClass):
 
 # Define an asynchronous function to process a batch of CSV rows
 async def process_csv_row(original_table_class, processed_table_class, R, start_row):
+    """
+    Asynchronously processes a batch of CSV rows.
+
+    Parameters:
+    - original_table_class (class): The SQLAlchemy table class for the original CSV data.
+    - processed_table_class (class): The SQLAlchemy table class for the processed data.
+    - R (int): The number of rows to process in the batch.
+    - start_row (int): The starting row index for the batch.
+
+    Returns:
+    - int: The count of processed rows in the batch.
+    """
     # Initialize the count of processed rows to zero
     processed_rows_count = 0
     # Start an asynchronous context manager with a session from the session factory
@@ -299,6 +377,15 @@ async def process_csv_row(original_table_class, processed_table_class, R, start_
 
 # Function to store the task state along with the Celery task ID
 def store_task_state(unique_id, task_id, next_start_row, total_rows):
+    """
+    Stores the state of a processing task in Redis.
+
+    Parameters:
+    - unique_id (str): The unique identifier for the CSV upload session.
+    - task_id (str): The Celery task ID.
+    - next_start_row (int): The next starting row index for processing.
+    - total_rows (int): The total number of rows to process.
+    """
     # Using Redis as a key-value store for atomic state updates
     redis_client = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, password=REDIS_PASSWORD)
     # Check if Redis server is running and accessible
@@ -327,6 +414,15 @@ def store_task_state(unique_id, task_id, next_start_row, total_rows):
 
 # Function to retrieve the task ID using the unique_id
 def get_task_id_by_unique_id(unique_id):
+    """
+    Retrieves the Celery task ID using the unique identifier of the CSV upload session.
+
+    Parameters:
+    - unique_id (str): The unique identifier for the CSV upload session.
+
+    Returns:
+    - str or None: The Celery task ID if found, otherwise None.
+    """
     # Initialize a Redis client with the specified host, port, database index, and password
     redis_client = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, password=REDIS_PASSWORD)
     try:
@@ -347,6 +443,13 @@ def get_task_id_by_unique_id(unique_id):
 
 
 def get_next_minute_start():
+    """
+    Calculates the start of the next minute from the current time.
+
+    Returns:
+    - datetime: A datetime object representing the start of the next minute.
+    """
+    
     # Get the current time in UTC
     current_time = datetime.utcnow()
     # Calculate the start of the next minute
