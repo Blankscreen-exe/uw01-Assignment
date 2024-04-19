@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import asyncio
 import json
 from datetime import datetime, timedelta
+from pprint import pprint as pp
 
 # Load environment variables from .env file
 load_dotenv()
@@ -59,7 +60,7 @@ DATABASE_URI = os.getenv(
 )
 
 # Redis server configuration
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', 6379)
 REDIS_DB = os.getenv('REDIS_DB', 0)
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
@@ -76,9 +77,7 @@ AsyncSessionLocal = sessionmaker(
 
 
 # Retrieve the Celery broker URL from environment variables or use the defaul Redis port
-CELERY_BROKER_URL = os.getenv(
-    "CELERY_BROKER_URL", "redis://redis:6379"
-)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379")
 # Initialize a new Celery application with the given broker URL
 celery_app = Celery("main", broker=CELERY_BROKER_URL)
 
@@ -91,7 +90,6 @@ celery_app.conf.beat_schedule = {
     },
 }
 
-# TODO: 1
 # Define a function to create a new table class for storing CSV data
 def create_csv_table_class(unique_id):
     """
@@ -144,6 +142,7 @@ def create_processed_data_table_class(unique_id):
     # Define the attributes of the class, including SQLAlchemy columns
     attributes = {
         '__tablename__': f'processed_{unique_id}',
+        # 'extend_existing': True,
         'id': Column(Integer, primary_key=True),
         'original_data_id': Column(Integer, ForeignKey(f'csv_{unique_id}.id')),
         'status': Column(String(100)),
@@ -206,7 +205,6 @@ async def read_and_store_csv(file_path, CSVTable, ProcessedDataTable, batch_size
             # Create instances of CSVTable for each record in the batch
             csv_objects = []
             for record in batch:
-                print("+"*12,record)
                 csv_objects.append(CSVTable(**record))
             
             await session.begin()
@@ -246,7 +244,6 @@ def process_csv_task(self, original_table_name, processed_table_name, R, start_r
     # Create a new event loop for the task
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    # TODO: 2
     # Dynamically create a class for the original CSV table
     OriginalCSVTableClass = create_csv_table_class(original_table_name)
     # Dynamically create a class for the processed data table
@@ -498,7 +495,6 @@ async def upload_csv(file: UploadFile = File(...), r: int = 1):
     # Store the CSV data in the database and retrieve the total number of rows
     total_rows = await read_and_store_csv(file_location, CSVTable, ProcessedDataTable)
     # Schedule the first processing task using Celery Beat
-    print("="*10,unique_id, r, total_rows)
     process_csv_task.apply_async(args=[unique_id, unique_id, r, 0, total_rows], eta=get_next_minute_start())
     # Return a success message and the unique_id for the upload session
     return {"message": "CSV upload successful. Processing will start shortly.", "unique_id": unique_id}
