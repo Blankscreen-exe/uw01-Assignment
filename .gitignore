@@ -1,0 +1,6 @@
+__misc__
+database.db
+temp/*
+venv
+.env
+*.pyc
